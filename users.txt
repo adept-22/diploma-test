@@ -1,0 +1,28 @@
+sergey : Qwerty123A13 : "auth_token": "7fea0d2696a0ea500a85e9e595a1724779ccd82c"
+
+"email": "andrey@test.test",  "auth_token": "45f1969f40559ff1d162639e7300eb755a8c2a7e"
+"username": "andrey",
+"first_name": "Андрей",
+"last_name": "Андреев",
+"password": "Qwerty123A13"
+
+
+"email": "anton@test.test",
+"username": "anton",
+"first_name": "Антон",
+"last_name": "Антонов",
+"password": "Qwerty123A13"
+
+
+"email": "nikolay@test.test",
+"username": "nikolay",
+"first_name": "Николай",
+"last_name": "Николаев",
+"password": "Qwerty123A13"
+
+
+"email": "semenov@test.test",
+"username": "semen",
+"first_name": "Семен",
+"last_name": "Николаев",
+"password": "Qwerty123A13"
