@@ -31,13 +31,14 @@ class RecipeSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(read_only=True)
     #ingredients = IngredientSerializer(read_only=True, many=True)
     ingredients = serializers.SerializerMethodField(method_name='get_recipe_ingredient')
+    picture = serializers.ImageField(max_length=None, required=True, allow_empty_file=False)#, #use_url=True)
 
     class Meta:
         model = Recipe
         # fields = ('id', 'tags', 'author', 'ingredients', 'is_favorited',
-        #           'is_in_shopping_cart', 'name', 'image', 'text', 'cooking_time')
+        #           'is_in_shopping_cart', 'name', 'picture', 'text', 'cooking_time')
         fields = ('id', 'tags', 'author', 'ingredients',
-                  'name', 'text', 'cooking_time')
+                  'name', 'text', 'cooking_time', 'picture')
 
 
     def get_recipe_ingredient(self, obj):
@@ -81,3 +82,12 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         print(author=obj.author)
         return 1
         #return Recipe.objects.filter(author=obj.author).count()
+
+#Сериализатор избранных рецептов
+class FavouriteSerializer(serializers.ModelSerializer):
+    picture = serializers.ImageField(max_length=None, required=True, allow_empty_file=False, use_url=True)
+
+    class Meta:
+        model = Recipe
+        #fields = ('id', 'name', 'image', 'cooking_time')
+        fields = ('id', 'name', 'picture', 'cooking_time')
