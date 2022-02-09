@@ -5,26 +5,44 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Sum
 from django.shortcuts import HttpResponse
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
 
 
 from foodgram.models import Ingredient, Tag, Recipe, Subscription, Favorites, RecipeIngredients, ShoppingList
 from users.models import Users
-from .serializers import IngredientSerializer, TagSerializer, RecipeSerializer, SubscriptionSerializer, FavouriteSerializer
+from .serializers import IngredientSerializer, TagSerializer, ViewRecipesSerializer, CreateOrСhangeRecipeSerializer, SubscriptionSerializer, FavouriteSerializer
 
 #Вьюсет ингридиентов
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
+    permission_classes = (AllowAny, )
+    pagination_class = None
 
 #Вьюсет тегов
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
+    permission_classes = (AllowAny,)
+    pagination_class = None
 
 #Вьюсет рецептов
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
+    #serializer_class = RecipeSerializer
+    #permission_classes = (AllowAny, )
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return ViewRecipesSerializer
+        return CreateOrСhangeRecipeSerializer
+
+    # def get_serializer_context(self):
+    #
+    #     context = super(RecipeViewSet, self).get_serializer_context()
+    #     context.update({"request": self.request})
+    #     return context
 
 #Вьюсет подписок
 class SubscriptionViewSet(viewsets.ModelViewSet):
@@ -40,63 +58,54 @@ class FavouriteViewSet(APIView):
 
     def post(self, request, id):
         user = request.user
-        recipe = get_object_or_404(Recipe, id=id)
+        if not Recipe.objects.filter(id=id).exists():
+            return Response(
+                f'Рецепт с id {id} не найден!',
+                status=status.HTTP_404_NOT_FOUND
+            )
+        recipe = Recipe.objects.get(id=id)
         if Favorites.objects.filter(user=user, recipe=recipe).exists():
             return Response(
-                'Вы уже добавили рецепт в избранное',
+                f'Рецепт с id {id} уже добавлен в избранное',
                 status=status.HTTP_400_BAD_REQUEST)
         Favorites.objects.create(user=user, recipe=recipe)
         serializer = FavouriteSerializer(recipe)
         return Response(
                 serializer.data,
-                status=status.HTTP_201_CREATED)
+                status=status.HTTP_201_CREATED
+        )
 
     def delete(self, request, id):
         user = request.user
-        recipe = get_object_or_404(Recipe, id=id)
-        favorite_obj = get_object_or_404(Favorites, user=user, recipe=recipe)
-        if not favorite_obj:
+        if not Recipe.objects.filter(id=id).exists():
             return Response(
-                'Рецепт не был в избранном',
+                f'Рецепт с id {id} не найден!',
+                status=status.HTTP_404_NOT_FOUND
+            )
+        recipe = Recipe.objects.get(id=id)
+        #favorite_obj = get_object_or_404(Favorites, user=user, recipe=recipe)
+        #if not favorite_obj:
+        if not Favorites.objects.filter(user=user, recipe=recipe).exists():
+            return Response(
+                f'Рецепт с id {id} не был в избранном',
                 status=status.HTTP_400_BAD_REQUEST)
-        favorite_obj.delete()
+        favorites = Favorites.objects.get(user=user, recipe=recipe)
+        favorites.delete()
         return Response(
-            'Удалено', status=status.HTTP_204_NO_CONTENT)
+            f'Рецепт с id {id} удален из избранного', status=status.HTTP_204_NO_CONTENT)
 
-# class FavouriteViewSet(APIView):
-#     #permission_classes = (IsAuthenticated, )
-#
-#     def post(self, request, id):
-#         user = request.user
-#         recipe = get_object_or_404(Recipe, id=id)
-#         if Favorites.objects.filter(user=user, recipe=recipe).exists():
-#             return Response(
-#                 'Вы уже добавили рецепт в избранное',
-#                 status=status.HTTP_400_BAD_REQUEST)
-#         Favorites.objects.create(user=user, recipe=recipe)
-#         serializer = FavouriteSerializer(recipe)
-#         return Response(
-#                 serializer.data,
-#                 status=status.HTTP_201_CREATED)
-#
-#     def delete(self, request, id):
-#         user = request.user
-#         recipe = get_object_or_404(Recipe, id=id)
-#         favorite_obj = get_object_or_404(Favorites, user=user, recipe=recipe)
-#         if not favorite_obj:
-#             return Response(
-#                 'Рецепт не был в избранном',
-#                 status=status.HTTP_400_BAD_REQUEST)
-#         favorite_obj.delete()
-#         return Response(
-#             'Удалено', status=status.HTTP_204_NO_CONTENT)
-
+#APIView списка покупок
 class ShoppingCartViewSet(APIView):
     # permission_classes = (IsAuthenticated, )
 
     def post(self, request, id):
         user = request.user
-        recipe = get_object_or_404(Recipe, id=id)
+        if not Recipe.objects.filter(id=id).exists():
+            return Response(
+                f'Рецепт с id {id} не найден!',
+                status=status.HTTP_404_NOT_FOUND
+            )
+        recipe = Recipe.objects.get(id=id)
         if ShoppingList.objects.filter(user=user, recipe=recipe).exists():
             return Response(
                 'Этот рецепт есть в списке покупок!',
@@ -108,7 +117,12 @@ class ShoppingCartViewSet(APIView):
 
     def delete(self, request, id):
         user = request.user
-        recipe = get_object_or_404(Recipe, id=id)
+        if not Recipe.objects.filter(id=id).exists():
+            return Response(
+                f'Рецепт с id {id} не найден!',
+                status=status.HTTP_404_NOT_FOUND
+            )
+        recipe = Recipe.objects.get(id=id)
         if not ShoppingList.objects.filter(user=user, recipe=recipe).exists():
             return Response(
                 'Этого рецепта нет в списке покупок!',
@@ -121,7 +135,7 @@ class ShoppingCartViewSet(APIView):
             status=status.HTTP_204_NO_CONTENT
         )
 
-
+#APIView выгрузки ингридиентов списка покупок
 class DownloadShoppingCart(APIView):
     #permission_classes = (IsAuthenticated, )
 
