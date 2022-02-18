@@ -6,12 +6,16 @@ from rest_framework import status
 from django.db.models import Sum
 from django.shortcuts import HttpResponse
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 
+PAGINATOR_PAGE_SIZE = 6
 
 
 from foodgram.models import Ingredient, Tag, Recipe, Subscription, Favorites, RecipeIngredients, ShoppingList
 from users.models import Users
-from .serializers import IngredientSerializer, TagSerializer, ViewRecipesSerializer, CreateOrСhangeRecipeSerializer, SubscriptionSerializer, FavouriteSerializer
+from .serializers import (IngredientSerializer, TagSerializer, ViewRecipesSerializer,
+                          CreateOrСhangeRecipeSerializer, SubscriptionSerializer, FavouriteSerializer)
+from .permissions import RecipePermission
 
 #Вьюсет ингридиентов
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -31,7 +35,7 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     #serializer_class = RecipeSerializer
-    #permission_classes = (AllowAny, )
+    permission_classes = (RecipePermission, )
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -45,12 +49,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
     #     return context
 
 #Вьюсет подписок
-class SubscriptionViewSet(viewsets.ModelViewSet):
-    serializer_class = SubscriptionSerializer
+# class SubscriptionViewSet(viewsets.ModelViewSet):
+#     serializer_class = SubscriptionSerializer
+#
+#     def get_queryset(self):
+#         user = Users.objects.get(username=self.request.user)
+#         return user.following.all()
 
-    def get_queryset(self):
-        user = Users.objects.get(username=self.request.user)
-        return user.following.all()
+#APIView подписок
+class SubscriptionViewSet(APIView):
+
+    def get(self, request):
+        subscriptions = Subscription.objects.filter(user=request.user)
+        paginator = PageNumberPagination()
+        paginator.page_size = PAGINATOR_PAGE_SIZE
+        page = paginator.paginate_queryset(subscriptions, request)
+        serializer = SubscriptionSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
 
 #APIView избранных рецептов
 class FavouriteViewSet(APIView):

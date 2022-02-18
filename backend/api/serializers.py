@@ -4,6 +4,13 @@ from drf_extra_fields.fields import Base64ImageField
 from foodgram.models import Ingredient, Tag, RecipeIngredients, Recipe, Subscription, ShoppingList, Favorites
 from users.serializers import CustomUserSerializer
 
+MISSING_INGREDIENTS = 'Отсутствуют ингредиенты'
+DUPLICATE_INGREDIENTS = 'Повторяющиеся ингредиенты'
+INVALID_INGREDIENT_QAUNTITY = 'Недопустимое количество ингредиента'
+MISSING_TAGS = 'Отсутствуют теги'
+DUPLICATE_TAGS = 'Повторяющиеся теги'
+INVALID_COOKING_TIME = 'Недопустимое время приготовления'
+
 #Сериализатр ингридиенты
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
@@ -85,33 +92,33 @@ class CreateOrСhangeRecipeSerializer(serializers.ModelSerializer):
         cooking_time = self.initial_data.get('cooking_time')
         if not ingredients:
             raise serializers.ValidationError(
-                'Отсутствуют ингредиенты'
+                MISSING_INGREDIENTS
             )
         ingredient_id = []
         for ingredient in ingredients:
             if ingredient['id'] in ingredient_id:
                 raise serializers.ValidationError(
-                    'Повторяющиеся ингредиенты'
+                    DUPLICATE_INGREDIENTS
                 )
             ingredient_id.append(ingredient['id'])
             if ingredient['number'] < 1:
                 raise serializers.ValidationError(
-                    'Недопустимое количество ингредиента'
+                    INVALID_INGREDIENT_QAUNTITY
                 )
         if not tags:
             raise serializers.ValidationError(
-                'Отсутствуют теги'
+                MISSING_TAGS
             )
         tags_id = []
         for tag in tags:
             if tag in tags_id:
                 raise serializers.ValidationError(
-                    'Повторяющиеся теги'
+                    DUPLICATE_TAGS
                 )
             tags_id.append(tag)
         if cooking_time < 1:
             raise serializers.ValidationError(
-                'Недопустимое время приготовления'
+                INVALID_COOKING_TIME
             )
         return data
 
@@ -155,6 +162,23 @@ class CreateOrСhangeRecipeSerializer(serializers.ModelSerializer):
             context={'request': self.context.get('request')}
         ).data
 
+#Сериализатор избранных рецептов
+class FavouriteSerializer(serializers.ModelSerializer):
+    picture = serializers.ImageField(max_length=None, required=True, allow_empty_file=False, use_url=True)
+
+    class Meta:
+        model = Recipe
+        #fields = ('id', 'name', 'image', 'cooking_time')
+        fields = ('id', 'name', 'picture', 'cooking_time')
+
+
+# Укароченный сериалайзер рецепта для сериалайзера подписок
+class ShortenedRecipeViewSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'picture', 'cooking_time')
+
 #Сериализатор подписки
 class SubscriptionSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='author.id')
@@ -162,19 +186,26 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source='author.username')
     first_name = serializers.ReadOnlyField(source='author.first_name')
     last_name = serializers.ReadOnlyField(source='author.last_name')
-    is_subscribed = serializers.SerializerMethodField(method_name='get_subscriptions_users')
-    #recipes = serializers.SerializerMethodField()
-    #recipes_count = serializers.SerializerMethodField(method_name='get_recipes_count')
+    is_subscribed = serializers.SerializerMethodField(
+        method_name='get_subscriptions_users')
+    recipes = serializers.SerializerMethodField(method_name='get_recipes')
+    recipes_count = serializers.SerializerMethodField(
+        method_name='get_recipes_count')
 
     class Meta:
         model = Subscription
-        #fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed', 'recipes', 'recipes_count')
-        #fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed', 'recipes_count')
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed')
-
+        fields = ('email', 'id', 'username', 'first_name',
+                  'last_name', 'is_subscribed', 'recipes', 'recipes_count')
 
     def get_subscriptions_users(self, obj):
         return True
+
+    def get_recipes(self, obj):
+        recipe = Recipe.objects.filter(author=obj.author)
+        return ShortenedRecipeViewSerializer(recipe, many=True).data
+
+    def get_recipes_count(self, obj):
+        return Recipe.objects.filter(author=obj.author).count()
 
 
 #переделать
@@ -187,21 +218,14 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     #     return CropRecipeSerializer(queryset, many=True).data
 
 #подумать как переделать в релейтед фил
-    def get_recipes_count(self, obj):
-        print('*******')
-        print(obj)
-        print(author=obj.author)
-        return 1
+    # def get_recipes_count(self, obj):
+    #     print('*******')
+    #     print(obj)
+    #     print(author=obj.author)
+    #     return 1
         #return Recipe.objects.filter(author=obj.author).count()
 
-#Сериализатор избранных рецептов
-class FavouriteSerializer(serializers.ModelSerializer):
-    picture = serializers.ImageField(max_length=None, required=True, allow_empty_file=False, use_url=True)
 
-    class Meta:
-        model = Recipe
-        #fields = ('id', 'name', 'image', 'cooking_time')
-        fields = ('id', 'name', 'picture', 'cooking_time')
 
 
 #Подумать

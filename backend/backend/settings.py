@@ -118,9 +118,13 @@ DJOSER = {
         'current_user': 'users.serializers.CustomUserSerializer',
     },
     'PERMISSIONS': {
-        'user': ['djoser.permissions.CurrentUserOrAdminOrReadOnly'],
-        'user_list': ['djoser.permissions.CurrentUserOrAdminOrReadOnly']
+        #Изменения для того что бы неавторизованный пользователь видел User и User{id}
+        # 'user': ['djoser.permissions.CurrentUserOrAdminOrReadOnly'],
+        # 'user_list': ['djoser.permissions.CurrentUserOrAdminOrReadOnly']
+        'user': ['rest_framework.permissions.AllowAny'],
+        'user_list': ['rest_framework.permissions.AllowAny']
     },
+    #rest_framework.permissions.AllowAny'
     'HIDE_USERS': False,
 }
 
