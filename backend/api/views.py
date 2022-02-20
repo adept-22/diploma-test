@@ -7,6 +7,8 @@ from django.db.models import Sum
 from django.shortcuts import HttpResponse
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 
 PAGINATOR_PAGE_SIZE = 6
 
@@ -16,13 +18,17 @@ from users.models import Users
 from .serializers import (IngredientSerializer, TagSerializer, ViewRecipesSerializer,
                           CreateOrСhangeRecipeSerializer, SubscriptionSerializer, FavouriteSerializer)
 from .permissions import RecipePermission
+from .filters import RecipeFilter
 
 #Вьюсет ингридиентов
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     permission_classes = (AllowAny, )
+    filter_backends = (filters.SearchFilter, )
+    search_fields = ('name',)
     pagination_class = None
+    
 
 #Вьюсет тегов
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -34,6 +40,8 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 #Вьюсет рецептов
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = RecipeFilter
     #serializer_class = RecipeSerializer
     permission_classes = (RecipePermission, )
 
@@ -67,6 +75,55 @@ class SubscriptionViewSet(APIView):
         serializer = SubscriptionSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
+
+#APIView добавления и удаления подписки
+class AddOrRemoveSubscriptionViewSet(APIView):
+
+    def post(self, request, id):
+        user = request.user
+        if not Users.objects.filter(id=id).exists():
+            return Response(
+                f'Автор с id {id} не найден!',
+                status=status.HTTP_404_NOT_FOUND
+            )
+        author = Users.objects.get(id=id)
+        if Subscription.objects.filter(user=user, author=author).exists():
+            return Response(
+                f'Подписка на автора c id {id} уже существует',
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if user == author:
+            return Response(
+                f'Нельзя подписаться на себя',
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        record = Subscription.objects.create(user=user, author=author)
+        serializer = SubscriptionSerializer(record)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+    def delete(self, request, id):
+        user = request.user
+        if not Users.objects.filter(id=id).exists():
+            return Response(
+                f'Автор с id {id} не найден!',
+                status=status.HTTP_404_NOT_FOUND
+            )
+        author = Users.objects.get(id=id)
+        if not Subscription.objects.filter(user=user, author=author).exists():
+            return Response(
+                f'Подписки на автора c id {id} не существует',
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        record = Subscription.objects.get(user=user, author=author)
+        record.delete()
+        return Response(
+            f'Подписка на пользователя с id {id} удалена',
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 #APIView избранных рецептов
 class FavouriteViewSet(APIView):
